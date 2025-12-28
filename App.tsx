@@ -134,7 +134,7 @@ const App: React.FC = () => {
       <nav className="hidden md:flex flex-col w-64 bg-white border-r border-pink-100 p-8 space-y-8">
         <div className="flex items-center gap-2 text-pink-600 font-bold text-2xl cursor-pointer" onClick={() => setActiveView('garden')}>
           <Sprout size={32} />
-          <span>BloomHabit</span>
+          <span>habit bloom</span>
         </div>
         
         <div className="space-y-2">
