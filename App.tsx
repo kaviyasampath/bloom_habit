@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Habit, HabitLog, Todo } from './types';
 import HabitCard from './components/HabitCard';
-import AddHabitModal from './components/AddHabitModal';
+import HabitModal from './components/HabitModal';
 import { generateWeeklySummary, detectDropOff } from './services/geminiService';
 import { 
   Plus, 
@@ -15,7 +15,10 @@ import {
   Trash2, 
   CheckCircle2, 
   Circle, 
-  LogOut 
+  LogOut,
+  Pencil,
+  Check,
+  X
 } from 'lucide-react';
 
 type View = 'garden' | 'tasks' | 'settings';
@@ -27,9 +30,14 @@ const App: React.FC = () => {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [todoInput, setTodoInput] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [habitToEdit, setHabitToEdit] = useState<Habit | null>(null);
   const [weeklySummary, setWeeklySummary] = useState<string>("");
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [nudges, setNudges] = useState<Record<string, string>>({});
+  
+  // Editing state for Todos
+  const [editingTodoId, setEditingTodoId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
 
   // Persistence
   useEffect(() => {
@@ -51,9 +59,21 @@ const App: React.FC = () => {
     setHabits([...habits, habit]);
   };
 
+  const handleUpdateHabit = (updatedHabit: Habit) => {
+    setHabits(habits.map(h => h.id === updatedHabit.id ? updatedHabit : h));
+    setHabitToEdit(null);
+  };
+
+  const openEditHabit = (habit: Habit) => {
+    setHabitToEdit(habit);
+    setIsModalOpen(true);
+  };
+
   const handleDeleteHabit = (id: string) => {
-    setHabits(habits.filter(h => h.id !== id));
-    setLogs(logs.filter(l => l.habitId !== id));
+    if (window.confirm("Are you sure you want to uproot this habit? All progress will be lost.")) {
+      setHabits(habits.filter(h => h.id !== id));
+      setLogs(logs.filter(l => l.habitId !== id));
+    }
   };
 
   const handleToggleHabit = (habitId: string, value: number) => {
@@ -94,6 +114,23 @@ const App: React.FC = () => {
 
   const handleDeleteTodo = (id: string) => {
     setTodos(todos.filter(t => t.id !== id));
+  };
+
+  const startEditingTodo = (todo: Todo) => {
+    setEditingTodoId(todo.id);
+    setEditValue(todo.text);
+  };
+
+  const cancelEditingTodo = () => {
+    setEditingTodoId(null);
+    setEditValue('');
+  };
+
+  const saveEditingTodo = (id: string) => {
+    if (!editValue.trim()) return;
+    setTodos(todos.map(t => t.id === id ? { ...t, text: editValue.trim() } : t));
+    setEditingTodoId(null);
+    setEditValue('');
   };
 
   const fetchWeeklySummary = async () => {
@@ -176,7 +213,10 @@ const App: React.FC = () => {
                 <p className="text-gray-400 text-sm">Today is {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
               </div>
               <button 
-                onClick={() => setIsModalOpen(true)}
+                onClick={() => {
+                  setHabitToEdit(null);
+                  setIsModalOpen(true);
+                }}
                 className="flex items-center gap-2 bg-pink-500 text-white px-6 py-3 rounded-2xl shadow-lg hover:bg-pink-600 hover:-translate-y-0.5 transition-all"
               >
                 <Plus size={20} />
@@ -240,6 +280,7 @@ const App: React.FC = () => {
                     logs={logs.filter(l => l.habitId === habit.id)}
                     onToggle={handleToggleHabit}
                     onDelete={handleDeleteHabit}
+                    onEdit={openEditHabit}
                   />
                 ))
               )}
@@ -276,20 +317,62 @@ const App: React.FC = () => {
                     key={todo.id} 
                     className="bg-white p-5 rounded-2xl border border-pink-50 flex items-center justify-between group shadow-sm hover:shadow-md transition-all"
                   >
-                    <div className="flex items-center gap-4 flex-1 cursor-pointer" onClick={() => handleToggleTodo(todo.id)}>
-                      <button className={`transition-colors ${todo.completed ? 'text-pink-500' : 'text-pink-200'}`}>
+                    <div className="flex items-center gap-4 flex-1">
+                      <button 
+                        onClick={() => handleToggleTodo(todo.id)}
+                        className={`transition-colors flex-shrink-0 ${todo.completed ? 'text-pink-500' : 'text-pink-200'}`}
+                      >
                         {todo.completed ? <CheckCircle2 size={24} /> : <Circle size={24} />}
                       </button>
-                      <span className={`text-lg transition-all ${todo.completed ? 'text-gray-300 line-through' : 'text-gray-700'}`}>
-                        {todo.text}
-                      </span>
+                      
+                      {editingTodoId === todo.id ? (
+                        <div className="flex-1 flex gap-2 items-center">
+                          <input 
+                            autoFocus
+                            type="text"
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') saveEditingTodo(todo.id);
+                              if (e.key === 'Escape') cancelEditingTodo();
+                            }}
+                            className="flex-1 bg-pink-50 border-none rounded-xl px-3 py-1 text-gray-700 focus:ring-2 focus:ring-pink-300 outline-none"
+                          />
+                          <button onClick={() => saveEditingTodo(todo.id)} className="text-green-500 hover:text-green-600">
+                            <Check size={20} />
+                          </button>
+                          <button onClick={cancelEditingTodo} className="text-gray-400 hover:text-gray-500">
+                            <X size={20} />
+                          </button>
+                        </div>
+                      ) : (
+                        <span 
+                          onClick={() => handleToggleTodo(todo.id)}
+                          className={`text-lg transition-all cursor-pointer select-none ${todo.completed ? 'text-gray-300 line-through' : 'text-gray-700'}`}
+                        >
+                          {todo.text}
+                        </span>
+                      )}
                     </div>
-                    <button 
-                      onClick={() => handleDeleteTodo(todo.id)}
-                      className="opacity-0 group-hover:opacity-100 p-2 text-gray-300 hover:text-red-400 transition-all"
-                    >
-                      <Trash2 size={18} />
-                    </button>
+                    
+                    <div className="flex items-center gap-2">
+                      {editingTodoId !== todo.id && (
+                        <>
+                          <button 
+                            onClick={() => startEditingTodo(todo)}
+                            className="opacity-0 group-hover:opacity-100 p-2 text-gray-300 hover:text-pink-400 transition-all"
+                          >
+                            <Pencil size={18} />
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteTodo(todo.id)}
+                            className="opacity-0 group-hover:opacity-100 p-2 text-gray-300 hover:text-red-400 transition-all"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 ))
               )}
@@ -364,6 +447,7 @@ const App: React.FC = () => {
         <button 
           onClick={() => {
             setActiveView('garden');
+            setHabitToEdit(null);
             setIsModalOpen(true);
           }}
           className="w-14 h-14 bg-pink-500 rounded-2xl flex items-center justify-center text-white shadow-lg active:scale-90 transition-transform -translate-y-4"
@@ -377,7 +461,17 @@ const App: React.FC = () => {
         />
       </nav>
 
-      {isModalOpen && <AddHabitModal onClose={() => setIsModalOpen(false)} onAdd={handleAddHabit} />}
+      {isModalOpen && (
+        <HabitModal 
+          onClose={() => {
+            setIsModalOpen(false);
+            setHabitToEdit(null);
+          }} 
+          onAdd={handleAddHabit}
+          onUpdate={handleUpdateHabit}
+          initialHabit={habitToEdit}
+        />
+      )}
     </div>
   );
 };

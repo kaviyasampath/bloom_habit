@@ -3,16 +3,17 @@ import React, { useState, useEffect } from 'react';
 import { Habit, HabitLog } from '../types';
 import PlantVisual from './PlantVisual';
 import { generateMotivation } from '../services/geminiService';
-import { Sparkles, Trash2, CheckCircle2, Circle } from 'lucide-react';
+import { Sparkles, Trash2, CheckCircle2, Circle, Pencil } from 'lucide-react';
 
 interface HabitCardProps {
   habit: Habit;
   logs: HabitLog[];
   onToggle: (habitId: string, value: number) => void;
   onDelete: (habitId: string) => void;
+  onEdit: (habit: Habit) => void;
 }
 
-const HabitCard: React.FC<HabitCardProps> = ({ habit, logs, onToggle, onDelete }) => {
+const HabitCard: React.FC<HabitCardProps> = ({ habit, logs, onToggle, onDelete, onEdit }) => {
   const [motivation, setMotivation] = useState<string>("");
   const [loadingAI, setLoadingAI] = useState(false);
 
@@ -67,12 +68,22 @@ const HabitCard: React.FC<HabitCardProps> = ({ habit, logs, onToggle, onDelete }
             <p className="text-xs text-gray-400 capitalize">{habit.frequency} • {habit.goalTarget} {habit.unit}</p>
           </div>
         </div>
-        <button 
-          onClick={() => onDelete(habit.id)}
-          className="opacity-0 group-hover:opacity-100 p-2 text-gray-300 hover:text-red-400 transition-all"
-        >
-          <Trash2 size={18} />
-        </button>
+        <div className="flex gap-1">
+          <button 
+            onClick={() => onEdit(habit)}
+            className="opacity-0 group-hover:opacity-100 p-2 text-gray-300 hover:text-pink-400 transition-all"
+            aria-label="Edit Habit"
+          >
+            <Pencil size={18} />
+          </button>
+          <button 
+            onClick={() => onDelete(habit.id)}
+            className="opacity-0 group-hover:opacity-100 p-2 text-gray-300 hover:text-red-400 transition-all"
+            aria-label="Delete Habit"
+          >
+            <Trash2 size={18} />
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 items-center">
